@@ -12,7 +12,7 @@ namespace InlämningDatabas
         {
             //SetUpDatabase.SetUp();
             //Console.WriteLine("Done and done!");
-            
+            FindDateAndTemperature.MenuAndPrint();
         }
     }
     class FindDateAndTemperature
@@ -21,7 +21,7 @@ namespace InlämningDatabas
         {
             Console.WriteLine("Välkommen till Väder-databasen WeatherDB");
             Console.WriteLine("Vänligen välj vad du önskar göra:");
-            Console.WriteLine("1: Se temperaturer för ett visst datum");
+            Console.WriteLine("1: Se medeltemperatur för ett visst datum");
             Console.WriteLine("2: Sortera datum från varmaste till kallaste dagen");
             Console.WriteLine("3: Sortera datum från torraste till fuktigaste dagen");
             Console.WriteLine("4: Sortera datum från minst till störst mögelrisk");
@@ -34,6 +34,14 @@ namespace InlämningDatabas
             {
                 case 1:
                     Console.Clear();
+                    Console.WriteLine("Var vänlig ange datumet du söker i format åååå-mm-dd.");
+                    Console.Write(": ");
+                    DateTime chosenDate = DateTime.ParseExact(Console.ReadLine(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+                    Console.WriteLine("Vänligen ange om du vill se temeratur för inomhus(inne) eller utomhus(ute)");
+                    Console.Write(": ");
+                    string sensor = Console.ReadLine();
+                    Console.WriteLine(SearchDate(chosenDate, sensor));
                     
                     break;
                 case 2:
@@ -63,17 +71,30 @@ namespace InlämningDatabas
                     break;
             }
         }
-        private static List<Library.Models.Temperature> SearchDate(DateTime date)
+        private static float SearchDate(DateTime date, string sensor)
         {
+            List<Library.Models.Temperature> temperatures = new List<Library.Models.Temperature>();
             using (var db = new Library.Models.EFContext())
             {
                 var query = (from d in db.Date
-                             join t in db.Temperature
-                             on d.DateOfTemperature equals t.DateOfTemperatureReading
                              where d.DateOfTemperature == date
-                             select t).ToList();
-                return query;
+                             select d.ID).FirstOrDefault().ToString();
+
+                int dateID = int.Parse(query);
+
+                var tempList = (from t in db.Temperature
+                                where t.DateID == dateID
+                                where t.PositionForReading == sensor
+                                select t).ToList();
+                foreach (var item in tempList)
+                {
+                    temperatures.Add(item);
+                }
             }
+            var averageTemperature = temperatures
+                .Average(t => t.TemperatureReading);
+
+            return averageTemperature;
         }
         private static void SortOnTemperature()
         {
@@ -138,7 +159,7 @@ namespace InlämningDatabas
                     string tempreading = $"{temperature[0]},{temperature[1]}";
                     float actualTempreading = float.Parse(tempreading);
 
-                    date.DateOfTemperature = DateTime.ParseExact(dateAndTime[0], "yyyy-mm-dd", System.Globalization.CultureInfo.InvariantCulture);
+                    date.DateOfTemperature = DateTime.ParseExact(dateAndTime[0], "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
                     temp.DateOfTemperatureReading = DateTime.Parse(dateAndTime[0]);
                     temp.TimeOfTemperatureReading = DateTime.Parse(dateAndTime[1]);
