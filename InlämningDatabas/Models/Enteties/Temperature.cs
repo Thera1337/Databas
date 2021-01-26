@@ -7,7 +7,6 @@ namespace Library.Models
     class Temperature
     {
         public int ID { get; set; }
-        public int DateID { get; set; }
         public float TemperatureReading { get; set; }
         public string PositionForReading { get; set; }
         public int Humidity { get; set; }

@@ -10,15 +10,111 @@ namespace InlämningDatabas
     {
         static void Main(string[] args)
         {
-            SetUpDatabase.SetUp();
-            Console.WriteLine("Done and done!");
+            //SetUpDatabase.SetUp();
+            //Console.WriteLine("Done and done!");
+            
+        }
+    }
+    class FindDateAndTemperature
+    {
+        public static void MenuAndPrint()
+        {
+            Console.WriteLine("Välkommen till Väder-databasen WeatherDB");
+            Console.WriteLine("Vänligen välj vad du önskar göra:");
+            Console.WriteLine("1: Se temperaturer för ett visst datum");
+            Console.WriteLine("2: Sortera datum från varmaste till kallaste dagen");
+            Console.WriteLine("3: Sortera datum från torraste till fuktigaste dagen");
+            Console.WriteLine("4: Sortera datum från minst till störst mögelrisk");
+            Console.WriteLine("5: Hitta första dagen av den meteorologiska hösten");
+            Console.WriteLine("6: Hitta första dagen av den meteorologiska vintern");
+
+            int menuChoise = int.Parse(Console.ReadLine());
+
+            switch (menuChoise)
+            {
+                case 1:
+                    Console.Clear();
+                    
+                    break;
+                case 2:
+                    Console.Clear();
+
+                    break;
+                case 3:
+                    Console.Clear();
+
+                    break;
+                case 4:
+                    Console.Clear();
+
+                    break;
+                case 5:
+                    Console.Clear();
+
+                    break;
+                case 6:
+                    Console.Clear();
+
+                    break;
+                default:
+                    Console.Clear();
+                    Console.WriteLine("Var vänlig ange siffran som föregår den aktion du vill utföra.");
+                    MenuAndPrint();
+                    break;
+            }
+        }
+        private static List<Library.Models.Temperature> SearchDate(DateTime date)
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+                var query = (from d in db.Date
+                             join t in db.Temperature
+                             on d.DateOfTemperature equals t.DateOfTemperatureReading
+                             where d.DateOfTemperature == date
+                             select t).ToList();
+                return query;
+            }
+        }
+        private static void SortOnTemperature()
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+
+            }
+        }
+        private static void SortOnHumidity()
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+
+            }
+        }
+        private static void SortByMoldrisk()
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+
+            }
+        }
+        private static void StartOfAutumn()
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+
+            }
+        }
+        private static void StartOfWinter()
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+
+            }
         }
     }
     class SetUpDatabase
     {
         static List<Library.Models.Temperature> temps = new List<Library.Models.Temperature>();
         static List<Library.Models.Date> dates = new List<Library.Models.Date>();
-
         public static void SetUp()
         {
             ReadFromFile();
@@ -42,7 +138,7 @@ namespace InlämningDatabas
                     string tempreading = $"{temperature[0]},{temperature[1]}";
                     float actualTempreading = float.Parse(tempreading);
 
-                    date.DateOfTemperature = DateTime.Parse(dateAndTime[0]);
+                    date.DateOfTemperature = DateTime.ParseExact(dateAndTime[0], "yyyy-mm-dd", System.Globalization.CultureInfo.InvariantCulture);
 
                     temp.DateOfTemperatureReading = DateTime.Parse(dateAndTime[0]);
                     temp.TimeOfTemperatureReading = DateTime.Parse(dateAndTime[1]);
@@ -50,11 +146,7 @@ namespace InlämningDatabas
                     temp.TemperatureReading = actualTempreading;
                     temp.Humidity = int.Parse(tempDetails[3]);
 
-                    if (dates[dates.Count-1].DateOfTemperature != date.DateOfTemperature)
-                    {
-                        dates.Add(date);
-                    }
-                    
+                    dates.Add(date);
                     temps.Add(temp);
                     Console.WriteLine("Line read done");
                 }
@@ -62,46 +154,42 @@ namespace InlämningDatabas
         }
         private static void AddToDatabase()
         {
-            for (int i = 0; i < dates.Count; i++)
+            var q = dates
+                .GroupBy(q => q.DateOfTemperature)
+                .Select(q => new Library.Models.Date() { DateOfTemperature = q.Key })
+                .ToList();
+
+            Console.WriteLine($"{q.Count} vs {dates.Count}");
+            List<Library.Models.Date> distinctDates = new List<Library.Models.Date>();
+            distinctDates.AddRange(q);
+
+            for (int i = 0; i < distinctDates.Count; i++)
             {
-                dates[i].Temperatures = new List<Library.Models.Temperature>();
+                distinctDates[i].Temperatures = new List<Library.Models.Temperature>();
 
                 var q1 = temps
-                    .Where(q => q.DateOfTemperatureReading == dates[i].DateOfTemperature).ToList();
+                    .Where(q => q.DateOfTemperatureReading == distinctDates[i].DateOfTemperature).ToList();
 
-                foreach (var item in q1)
-                {
-                    dates[i].Temperatures.Add(item);
-                }
+                distinctDates[i].Temperatures.AddRange(q1);
+
                 Console.WriteLine($"Temperaturer tillagt i datun nr {i}");
             }
 
-            int datesCounter = 0;
-            int tempsCounter = 0;
-
             using (var db = new Library.Models.EFContext())
             {
-                while (datesCounter < dates.Count)
+                foreach (var item in distinctDates)
                 {
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        db.Date.Add(dates[datesCounter]);
-                        datesCounter++;
-                    }
-                    db.SaveChanges();
-                    Console.WriteLine($"{datesCounter} datum inlagda i databasen");
+                    db.Date.Add(item);
                 }
 
-                while (tempsCounter < temps.Count)
+        
+                Console.WriteLine("Datum inlagda i databasen");
+
+                foreach (var item in temps)
                 {
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        db.Temperature.Add(temps[tempsCounter]);
-                        tempsCounter++;
-                    }
-                    db.SaveChanges();
-                    Console.WriteLine($"{tempsCounter} mätnignar inlagda i databasen");
+                    db.Temperature.Add(item);
                 }
+                db.SaveChanges();
             }
         }
     }
