@@ -41,7 +41,7 @@ namespace InlämningDatabas.Migrations
                         .HasColumnType("int")
                         .UseIdentityColumn();
 
-                    b.Property<int?>("DateID")
+                    b.Property<int>("DateID")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("DateOfTemperatureReading")
@@ -68,9 +68,13 @@ namespace InlämningDatabas.Migrations
 
             modelBuilder.Entity("Library.Models.Temperature", b =>
                 {
-                    b.HasOne("Library.Models.Date", null)
+                    b.HasOne("Library.Models.Date", "Date")
                         .WithMany("Temperatures")
-                        .HasForeignKey("DateID");
+                        .HasForeignKey("DateID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Date");
                 });
 
             modelBuilder.Entity("Library.Models.Date", b =>

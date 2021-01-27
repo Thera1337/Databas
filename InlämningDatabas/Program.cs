@@ -29,6 +29,7 @@ namespace InlämningDatabas
             Console.WriteLine("6: Hitta första dagen av den meteorologiska vintern");
 
             int menuChoise = int.Parse(Console.ReadLine());
+            string sensor;
 
             switch (menuChoise)
             {
@@ -38,30 +39,51 @@ namespace InlämningDatabas
                     Console.Write(": ");
                     DateTime chosenDate = DateTime.ParseExact(Console.ReadLine(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
-                    Console.WriteLine("Vänligen ange om du vill se temeratur för inomhus(inne) eller utomhus(ute)");
+                    Console.WriteLine("Vänligen ange om du vill se temperatur för inomhus(inne) eller utomhus(ute)");
                     Console.Write(": ");
-                    string sensor = Console.ReadLine();
+                    sensor = Console.ReadLine();
                     Console.WriteLine(SearchDate(chosenDate, sensor));
-                    
+
                     break;
                 case 2:
                     Console.Clear();
+                    Console.WriteLine("Vänligen ange om du vill sortera temperatur för inomhus(inne) eller utomhus(ute)");
+                    sensor = Console.ReadLine();
+
+                    foreach (var item in SortOnTemperature(sensor))
+                    {
+                        Console.WriteLine($"{item.date}, {item.avgTemp}");
+                    }
 
                     break;
                 case 3:
                     Console.Clear();
+                    Console.WriteLine("Vänligen ange om du vill sortera fuktighetsgrad för inomhus(inne) eller utomhus(ute)");
+                    sensor = Console.ReadLine();
 
+                    foreach (var item in SortOnHumidity(sensor))
+                    {
+                        Console.WriteLine($"{item.date}, {item.avgHumidity}");
+                    }
                     break;
                 case 4:
                     Console.Clear();
+                    Console.WriteLine("Vänligen ange om du vill se fuktighetsgrad för inomhus(inne) eller utomhus(ute)");
+                    sensor = Console.ReadLine();
 
+                    foreach (var item in SortByMoldrisk(sensor))
+                    {
+                        Console.WriteLine($"{item.date}, {item.moldrisk}");
+                    }
                     break;
                 case 5:
                     Console.Clear();
+                    Console.WriteLine($"Hösten startade :{StartOfAutumn()}");
 
                     break;
                 case 6:
                     Console.Clear();
+                    Console.WriteLine($"Vintern startade :{StartOfWinter()}");
 
                     break;
                 default:
@@ -73,62 +95,173 @@ namespace InlämningDatabas
         }
         private static float SearchDate(DateTime date, string sensor)
         {
-            List<Library.Models.Temperature> temperatures = new List<Library.Models.Temperature>();
             using (var db = new Library.Models.EFContext())
             {
-                var query = (from d in db.Date
-                             where d.DateOfTemperature == date
-                             select d.ID).FirstOrDefault().ToString();
+                var query = db.Date
+                    .Where(d => d.DateOfTemperature == date)
+                    .Select(d => d.ID)
+                    .FirstOrDefault();
 
-                int dateID = int.Parse(query);
+                var tempList = db.Temperature
+                    .Where(t => t.DateID == query)
+                    .Where(t => t.PositionForReading == sensor)
+                    .Select(t => t.TemperatureReading)
+                    .AsEnumerable();
 
-                var tempList = (from t in db.Temperature
-                                where t.DateID == dateID
-                                where t.PositionForReading == sensor
-                                select t).ToList();
-                foreach (var item in tempList)
+                return tempList.Average();
+            }
+        }
+        private static List<(DateTime date, float avgTemp)> SortOnTemperature(string sensor)
+        {
+            using (var db = new Library.Models.EFContext())
+            {
+                var query = db.Temperature
+                    .Where(t => t.PositionForReading == sensor)
+                    .GroupBy(t => t.Date.DateOfTemperature)
+                    .Select(g => new { date = g.Key, avgTemp = g.Average(t => t.TemperatureReading) })
+                    .OrderByDescending(x => x.avgTemp).AsEnumerable();
+
+                List<(DateTime, float)> resultSet = new();
+
+                foreach (var item in query)
                 {
-                    temperatures.Add(item);
+                    resultSet.Add((item.date, item.avgTemp));
                 }
+                return resultSet;
             }
-            var averageTemperature = temperatures
-                .Average(t => t.TemperatureReading);
-
-            return averageTemperature;
         }
-        private static void SortOnTemperature()
+        private static List<(DateTime date, double avgHumidity)> SortOnHumidity(string sensor)
         {
             using (var db = new Library.Models.EFContext())
             {
+                var query = db.Temperature
+                    .Where(t => t.PositionForReading == sensor)
+                    .GroupBy(t => t.Date.DateOfTemperature)
+                    .Select(g => new { date = g.Key, avgHumidity = g.Average(t => t.Humidity) })
+                    .OrderByDescending(x => x.avgHumidity).AsEnumerable();
 
+                List<(DateTime, double)> resultSet = new();
+
+                foreach (var item in query)
+                {
+                    resultSet.Add((item.date, item.avgHumidity));
+                }
+                return resultSet;
             }
         }
-        private static void SortOnHumidity()
+        private static List<(DateTime date, double moldrisk)> SortByMoldrisk(string sensor)
         {
             using (var db = new Library.Models.EFContext())
             {
+                var query = db.Temperature
+                    .Where(t => t.PositionForReading == sensor)
+                    .GroupBy(t => t.Date.DateOfTemperature)
+                    .Select(t => new
+                    {
+                        avgHumidity = t.Average(t => t.Humidity),
+                        avgTemp = t.Average(t => t.TemperatureReading),
+                        date = t.Key
+                    });
 
+                var moldriskList = query
+                    .Where(q => q.avgTemp >= 0 && q.avgHumidity >= 78)
+                    .Select(q => new
+                    {
+                        date = q.date,
+                        moldRisk = ((q.avgHumidity - 78) * (q.avgTemp / 15)) / 0.22
+                    })
+                    .OrderByDescending(q => q.moldRisk);
+
+                List<(DateTime date, double moldrisk)> resultSet = new();
+
+                foreach (var item in moldriskList)
+                {
+                    resultSet.Add((item.date, item.moldRisk));
+                }
+
+                return resultSet;
             }
         }
-        private static void SortByMoldrisk()
+        private static string StartOfAutumn()
         {
             using (var db = new Library.Models.EFContext())
             {
+                var query = db.Temperature
+                    .Where(t => t.PositionForReading == "ute")
+                    .GroupBy(t => t.Date.DateOfTemperature)
+                    .Select(g => new
+                    {
+                        date = g.Key,
+                        avgTemp = g.Average(t => t.TemperatureReading)
+                    })
+                    .AsEnumerable();
 
+                float compareAutumn = 10;
+                int daysCounter = 0;
+                string startOfAutumn="";
+                foreach (var item in query)
+                {
+                    if (item.avgTemp <= compareAutumn)
+                    {
+                        daysCounter++;
+                    }
+                    else
+                    {
+                        daysCounter = 0;
+                    }
+
+                    if (daysCounter >= 5)
+                    {
+                        startOfAutumn = $"{item.date}";
+                        break;
+                    }
+                    else
+                    {
+                        startOfAutumn = "Startdag för höst kunde inte hittas";
+                    }
+                }
+                return startOfAutumn;
             }
         }
-        private static void StartOfAutumn()
+        private static string StartOfWinter()
         {
             using (var db = new Library.Models.EFContext())
             {
+                var query = db.Temperature
+                    .Where(t => t.PositionForReading == "ute")
+                    .GroupBy(t => t.Date.DateOfTemperature)
+                    .Select(g => new
+                    {
+                        date = g.Key,
+                        avgTemp = g.Average(t => t.TemperatureReading)
+                    })
+                    .AsEnumerable();
 
-            }
-        }
-        private static void StartOfWinter()
-        {
-            using (var db = new Library.Models.EFContext())
-            {
+                float compareWinter = 0;
+                int daysCounter = 0;
+                string startOfWinter = "";
+                foreach (var item in query)
+                {
+                    if (item.avgTemp <= compareWinter)
+                    {
+                        daysCounter++;
+                    }
+                    else
+                    {
+                        daysCounter = 0;
+                    }
 
+                    if (daysCounter >= 5)
+                    {
+                        startOfWinter = $"{item.date}";
+                        break;
+                    }
+                    else
+                    {
+                        startOfWinter = "Startdag för vinter kunde inte hittas";
+                    }
+                }
+                return startOfWinter;
             }
         }
     }
@@ -203,7 +336,7 @@ namespace InlämningDatabas
                     db.Date.Add(item);
                 }
 
-        
+
                 Console.WriteLine("Datum inlagda i databasen");
 
                 foreach (var item in temps)

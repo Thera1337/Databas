@@ -28,6 +28,8 @@ namespace InlämningDatabas.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DateID = table.Column<int>(type: "int", nullable: false),
                     TemperatureReading = table.Column<float>(type: "real", nullable: false),
+                    PositionForReading = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Humidity = table.Column<int>(type: "int", nullable: false),
                     TimeOfTemperatureReading = table.Column<DateTime>(type: "datetime2", nullable: false),
                     DateOfTemperatureReading = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },

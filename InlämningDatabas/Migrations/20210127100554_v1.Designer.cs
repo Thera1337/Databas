@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InlämningDatabas.Migrations
 {
     [DbContext(typeof(EFContext))]
-    [Migration("20210125142209_v4")]
-    partial class v4
+    [Migration("20210127100554_v1")]
+    partial class v1
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -43,7 +43,7 @@ namespace InlämningDatabas.Migrations
                         .HasColumnType("int")
                         .UseIdentityColumn();
 
-                    b.Property<int?>("DateID")
+                    b.Property<int>("DateID")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("DateOfTemperatureReading")
@@ -70,9 +70,13 @@ namespace InlämningDatabas.Migrations
 
             modelBuilder.Entity("Library.Models.Temperature", b =>
                 {
-                    b.HasOne("Library.Models.Date", null)
+                    b.HasOne("Library.Models.Date", "Date")
                         .WithMany("Temperatures")
-                        .HasForeignKey("DateID");
+                        .HasForeignKey("DateID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Date");
                 });
 
             modelBuilder.Entity("Library.Models.Date", b =>
